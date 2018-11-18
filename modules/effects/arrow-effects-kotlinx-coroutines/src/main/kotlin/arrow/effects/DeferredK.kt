@@ -1,6 +1,5 @@
 package arrow.effects
 
-import arrow.Kind
 import arrow.core.*
 import arrow.effects.typeclasses.Disposable
 import arrow.effects.typeclasses.ExitCase
@@ -132,7 +131,6 @@ data class DeferredK<out A>(private val deferred: Deferred<A>, val scope: Corout
 
   }
 }
-
 
 fun <A> DeferredKOf<A>.startF(): DeferredK<Fiber<ForDeferredK, A>> {
   val join = scope().asyncK(start = CoroutineStart.DEFAULT) { await() }

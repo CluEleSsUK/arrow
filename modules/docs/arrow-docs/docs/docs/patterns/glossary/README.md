@@ -77,7 +77,7 @@ interface Eq<F> {
 }
 ```
 
-### Instances
+### Instances and Extensions Interfaces
 
 A single implementation of a typeclass for a specific datatype or class.
 Because typeclasses require generic parameters each implementation is meant to be unique for that parameter.
@@ -273,7 +273,7 @@ This function by convention is called `fix()`, as in, fixing a type from somethi
 fun Kind<ForListK, A>.fix() = this as ListK<A>
 ```
 
-This way we have can to convert from `ListK<A>` to `Kind<ForListK, A>` via simple subclassing and from `Kind<ForListK, A>` to `ListK<A>` using the function `fix()`.
+This way we can convert from `ListK<A>` to `Kind<ForListK, A>` via simple subclassing and from `Kind<ForListK, A>` to `ListK<A>` using the function `fix()`.
 Being able to define extension functions that work for partially applied generics is a feature from Kotlin that's not available in Java.
 You can define `fun Kind<ForOption, A>.fix()` and `fun Kind<ForListK, A>.fix()` and the compiler can smartly decide which one you're trying to use.
 If it can't it means there's an ambiguity you should fix!

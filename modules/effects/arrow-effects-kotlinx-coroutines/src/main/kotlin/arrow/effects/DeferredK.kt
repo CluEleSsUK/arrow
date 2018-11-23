@@ -114,10 +114,11 @@ data class DeferredK<out A>(private val deferred: Deferred<A>, val scope: Corout
         }.k()
       }
 
-    fun <A, B> racePair(lh: DeferredKOf<A>,
+    fun <A, B> racePair(ctx: CoroutineContext,
+                        lh: DeferredKOf<A>,
                         rh: DeferredKOf<B>): DeferredK<Either<Tuple2<A, Fiber<ForDeferredK, B>>, Tuple2<Fiber<ForDeferredK, A>, B>>> =
-      lh.startF().flatMap { fiberA ->
-        rh.startF().flatMap { fiberB ->
+      lh.startF(ctx).flatMap { fiberA ->
+        rh.startF(ctx).flatMap { fiberB ->
           DeferredK.async<Either<Tuple2<A, Fiber<ForDeferredK, B>>, Tuple2<Fiber<ForDeferredK, A>, B>>> { cb ->
             fiberA.join.fix().invokeOnCompletion { error ->
               error?.let { cb(it.left()) } ?: cb((fiberA.join.fix().getCompleted() toT fiberB).left().right())
@@ -132,8 +133,8 @@ data class DeferredK<out A>(private val deferred: Deferred<A>, val scope: Corout
   }
 }
 
-fun <A> DeferredKOf<A>.startF(): DeferredK<Fiber<ForDeferredK, A>> {
-  val join = scope().asyncK(start = CoroutineStart.DEFAULT) { await() }
+fun <A> DeferredKOf<A>.startF(ctx: CoroutineContext): DeferredK<Fiber<ForDeferredK, A>> {
+  val join = scope().asyncK(ctx= ctx, start = CoroutineStart.DEFAULT) { await() }
   val cancel = DeferredK(start = CoroutineStart.LAZY) { join.cancel() }
   return DeferredK.just(Fiber(join, cancel))
 }

@@ -1,15 +1,17 @@
 package arrow.effects.instances
 
 import arrow.Kind
-import arrow.core.Either
+import arrow.core.*
 import arrow.deprecation.ExtensionsDSLDeprecated
 import arrow.effects.*
+import arrow.effects.instances.io.monad.flatMap
 import arrow.effects.typeclasses.*
 import arrow.extension
 import arrow.typeclasses.*
 import kotlin.coroutines.CoroutineContext
 import arrow.effects.ap as ioAp
 import arrow.effects.handleErrorWith as ioHandleErrorWith
+import arrow.effects.startF as ioStart
 
 @extension
 interface IOFunctorInstance : Functor<ForIO> {
@@ -107,7 +109,23 @@ interface IOAsyncInstance : Async<ForIO>, IOMonadDeferInstance {
 }
 
 @extension
-interface IOEffectInstance : Effect<ForIO>, IOAsyncInstance {
+interface IOConcurrentInstance : Concurrent<ForIO>, IOAsyncInstance {
+  override fun <A> Kind<ForIO, A>.startF(ctx: CoroutineContext): Kind<ForIO, Fiber<ForIO, A>> =
+    ioStart(ctx)
+
+  override fun <A, B> racePair(ctx: CoroutineContext, lh: Kind<ForIO, A>, rh: Kind<ForIO, B>): Kind<ForIO, Either<Tuple2<A, Fiber<ForIO, B>>, Tuple2<Fiber<ForIO, A>, B>>> =
+    lh.startF(ctx).flatMap { fiberA ->
+      rh.startF(ctx).flatMap { fiberB ->
+        IO.raceN(ctx, fiberA.join, fiberB.join).map { eith ->
+          eith.fold({ Tuple2(it, fiberB).left() }, { Tuple2(fiberA, it).right() })
+        }
+      }
+    }
+
+}
+
+@extension
+interface IOEffectInstance : Effect<ForIO>, IOConcurrentInstance {
   override fun <A> Kind<ForIO, A>.runAsync(cb: (Either<Throwable, A>) -> Kind<ForIO, Unit>): IO<Unit> =
     fix().runAsync(cb)
 }

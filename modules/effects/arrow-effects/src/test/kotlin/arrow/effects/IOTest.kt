@@ -4,19 +4,25 @@ import arrow.Kind
 import arrow.core.*
 import arrow.effects.data.internal.IOCancellationException
 import arrow.effects.instances.io.async.async
+import arrow.effects.instances.io.concurrent.concurrent
 import arrow.effects.instances.io.monad.binding
+import arrow.effects.instances.io.monad.flatMap
 import arrow.effects.instances.io.monad.monad
 import arrow.effects.typeclasses.milliseconds
 import arrow.effects.typeclasses.seconds
 import arrow.instances.option.eq.eq
 import arrow.test.UnitSpec
 import arrow.test.concurrency.SideEffect
-import arrow.test.laws.AsyncLaws
+import arrow.test.laws.ConcurrentLaws
+import arrow.test.laws.equalUnderTheLaw
 import arrow.typeclasses.Eq
 import io.kotlintest.KTestJUnitRunner
 import io.kotlintest.matchers.fail
 import io.kotlintest.matchers.shouldBe
 import io.kotlintest.matchers.shouldEqual
+import io.kotlintest.properties.Gen
+import io.kotlintest.properties.forAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.newSingleThreadContext
 import org.junit.runner.RunWith
 
@@ -27,13 +33,13 @@ class IOTest : UnitSpec() {
   fun <A> EQ(): Eq<Kind<ForIO, A>> {
     return Eq { a, b ->
       EQ_OPTION.run {
-        a.fix().attempt().unsafeRunTimed(60.seconds).eqv(b.fix().attempt().unsafeRunTimed(60.seconds))
+        a.fix().attempt().unsafeRunTimed(5.seconds).eqv(b.fix().attempt().unsafeRunTimed(5.seconds))
       }
     }
   }
 
   init {
-    testLaws(AsyncLaws.laws(IO.async(), EQ(), EQ()))
+    testLaws(ConcurrentLaws.laws(IO.concurrent(), EQ(), EQ(), EQ()))
 
     "should defer evaluation until run" {
       var run = false

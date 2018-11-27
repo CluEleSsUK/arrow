@@ -1,38 +1,81 @@
 package arrow.effects.internal
 
-import arrow.core.Either
+import arrow.Kind
+import arrow.core.*
 import arrow.effects.Promise
+import arrow.effects.UncancelablePromise
 import java.util.concurrent.atomic.AtomicReference
 
-internal class Promise<A> {
+ fun <A> Promise.Companion.unsafe() : Promise<ForId, A> = UnsafePromise()
 
-  private val state: AtomicReference<State<A>> = AtomicReference()
+internal class UnsafePromise<A> : Promise<ForId, A> {
 
-  val get: A get() {
-    tailrec fun loop(): A {
-      val st = state.get()
-      return when (st) {
+  private val state: AtomicReference<State<A>> = AtomicReference(State.Pending(emptyList()))
+
+  override val get: Id<A>
+    get() {
+      tailrec fun loop(): Id<A> = when (val st = state.get()) {
         is State.Pending<A> -> loop()
-        is State.Full -> st.value
+        is State.Full -> Id(st.value)
         is State.Error -> throw st.throwable
       }
+
+      tailrec fun calculateNewState(): Unit {
+        val oldState = state.get()
+        val newState = when (oldState) {
+          is State.Pending<A> -> State.Pending(oldState.joiners)
+          is State.Full -> oldState
+          is State.Error -> oldState
+        }
+        return if (state.compareAndSet(oldState, newState)) Unit else calculateNewState()
+      }
+
+      calculateNewState()
+      return loop()
     }
 
+  override val tryGet: Kind<ForId, Option<A>>
+    get() = when (val oldState = state.get()) {
+      is State.Pending<A> -> Id(None)
+      is State.Full -> Id(Some(oldState.value))
+      is State.Error -> Id(None)
+    }
+
+  override fun tryComplete(a: A): Id<Boolean> {
     tailrec fun calculateNewState(): Unit {
       val oldState = state.get()
       val newState = when (oldState) {
-        is State.Pending<A> -> State.Pending(oldState.joiners)
+        is State.Pending<A> -> State.Full(a)
         is State.Full -> oldState
         is State.Error -> oldState
       }
-      return if (state.compareAndSet(oldState, newState)) Unit else calculateNewState()
+
+      if (state.compareAndSet(oldState, newState)) Unit else calculateNewState()
     }
 
-    calculateNewState()
-    return loop()
+    val oldState = state.get()
+    return when (oldState) {
+      is State.Pending -> {
+        calculateNewState()
+        Id(true)
+      }
+      is State.Full -> Id(false)
+      is State.Error -> Id(false)
+    }
   }
 
-  fun complete(a: A): Unit {
+  override fun error(throwable: Throwable): Id<Unit> =
+    throw throwable
+
+  override fun tryError(throwable: Throwable): Id<Boolean> = state.get().let { oldState ->
+    when (oldState) {
+      is State.Pending -> throw  throwable
+      is State.Full -> Id(false)
+      is State.Error -> Id(false)
+    }
+  }
+
+  override fun complete(a: A): Id<Unit> {
     tailrec fun calculateNewState(): Unit {
       val oldState = state.get()
       val newState = when (oldState) {
@@ -42,12 +85,15 @@ internal class Promise<A> {
       }
       return if (state.compareAndSet(oldState, newState)) Unit else calculateNewState()
     }
+
     val oldState = state.get()
     when (oldState) {
-      is State.Pending -> calculateNewState().let { Unit }
+      is State.Pending -> calculateNewState()
       is State.Full -> throw Promise.AlreadyFulfilled
       is State.Error -> throw Promise.AlreadyFulfilled
     }
+
+    return Id(Unit)
   }
 
   internal sealed class State<out A> {

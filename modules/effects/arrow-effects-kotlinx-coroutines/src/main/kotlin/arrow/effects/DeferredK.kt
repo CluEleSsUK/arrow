@@ -556,11 +556,11 @@ sealed class DeferredK<A>(
       lh.startF(ctx).flatMap { fiberA ->
         rh.startF(ctx).flatMap { fiberB ->
           DeferredK.async<Either<Tuple2<A, Fiber<ForDeferredK, B>>, Tuple2<Fiber<ForDeferredK, A>, B>>> { cb ->
-            fiberA.join.fix().invokeOnCompletion { error ->
-              error?.let { cb(it.left()) } ?: cb((fiberA.join.fix().getCompleted() toT fiberB).left().right())
+            fiberA.join.unsafeRunAsync { eith ->
+              cb(eith.map { (it toT fiberB).left() })
             }
-            fiberB.join.fix().invokeOnCompletion { error ->
-              error?.let { cb(it.left()) } ?: cb((fiberA toT fiberB.join.fix().getCompleted()).right().right())
+            fiberB.join.unsafeRunAsync { eith ->
+              cb(eith.map { (fiberA toT it).right() })
             }
           }
         }
@@ -570,7 +570,7 @@ sealed class DeferredK<A>(
 }
 
 fun <A> DeferredKOf<A>.startF(ctx: CoroutineContext): DeferredK<Fiber<ForDeferredK, A>> {
-  val join = scope().asyncK(ctx= ctx, start = CoroutineStart.DEFAULT) { await() }
+  val join = scope().asyncK(ctx = ctx, start = CoroutineStart.DEFAULT) { await() }
   val cancel = DeferredK(start = CoroutineStart.LAZY) { join.cancel() }
   return DeferredK.just(Fiber(join, cancel))
 }

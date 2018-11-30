@@ -294,7 +294,7 @@ sealed class DeferredK<A>(
    *   println(safeComputation.unsafeRunSync())
    * }
    */
-  fun <B> bracketCase(use: (A) -> DeferredK<B>, release: (A, ExitCase<Throwable>) -> DeferredK<Unit>): DeferredK<B> =
+  fun <B> bracketCase(use: (A) -> DeferredKOf<B>, release: (A, ExitCase<Throwable>) -> DeferredKOf<Unit>): DeferredK<B> =
     flatMap { a ->
       try {
         use(a).also { release(a, ExitCase.Completed) }

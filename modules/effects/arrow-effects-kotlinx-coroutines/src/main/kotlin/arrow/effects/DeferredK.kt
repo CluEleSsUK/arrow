@@ -556,10 +556,10 @@ sealed class DeferredK<A>(
       lh.startF(ctx).flatMap { fiberA ->
         rh.startF(ctx).flatMap { fiberB ->
           DeferredK.async<Either<Tuple2<A, Fiber<ForDeferredK, B>>, Tuple2<Fiber<ForDeferredK, A>, B>>> { cb ->
-            fiberA.join.unsafeRunAsync { eith ->
+            fiberA.join().unsafeRunAsync { eith ->
               cb(eith.map { (it toT fiberB).left() })
             }
-            fiberB.join.unsafeRunAsync { eith ->
+            fiberB.join().unsafeRunAsync { eith ->
               cb(eith.map { (fiberA toT it).right() })
             }
           }
@@ -569,11 +569,12 @@ sealed class DeferredK<A>(
   }
 }
 
-fun <A> DeferredKOf<A>.startF(ctx: CoroutineContext): DeferredK<Fiber<ForDeferredK, A>> {
-  val join = scope().asyncK(ctx = ctx, start = CoroutineStart.DEFAULT) { await() }
-  val cancel = DeferredK(start = CoroutineStart.LAZY) { join.cancel() }
-  return DeferredK.just(Fiber(join, cancel))
-}
+fun <A> DeferredKOf<A>.startF(ctx: CoroutineContext): DeferredK<Fiber<ForDeferredK, A>> =
+  DeferredK.defer(scope()) {
+    val join = scope().asyncK(ctx = ctx, start = CoroutineStart.DEFAULT) { await() }
+    val cancel = DeferredK(start = CoroutineStart.LAZY) { join.cancel() }
+    DeferredK.just(Fiber(join, cancel))
+  }
 
 /**
  * Handle errors from [MonadThrow]

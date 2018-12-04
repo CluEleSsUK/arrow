@@ -6,7 +6,7 @@ import arrow.core.Try
 import arrow.data.ListK
 import arrow.data.NonEmptyList
 import arrow.data.k
-import arrow.effects.deferredk.concurrent.concurrent
+import arrow.effects.deferredk.async.async
 import arrow.instances.`try`.functor.functor
 import arrow.instances.`try`.traverse.traverse
 import arrow.instances.listk.functor.functor
@@ -17,7 +17,7 @@ import arrow.instances.option.functor.functor
 import arrow.instances.option.traverse.traverse
 import arrow.test.UnitSpec
 import arrow.test.generators.genIntSmall
-import arrow.test.laws.ConcurrentLaws
+import arrow.test.laws.AsyncLaws
 import arrow.typeclasses.Eq
 import arrow.typeclasses.Functor
 import arrow.typeclasses.Traverse
@@ -43,7 +43,7 @@ class DeferredKTest : UnitSpec() {
   }
 
   init {
-    testLaws(ConcurrentLaws.laws(DeferredK.concurrent(), EQ(), EQ(), EQ()))
+    testLaws(AsyncLaws.laws(DeferredK.async(), EQ(), EQ(), EQ()))
 
     "DeferredK is awaitable" {
       forAll(genIntSmall(), genIntSmall(), genIntSmall()) { x: Int, y: Int, z: Int ->

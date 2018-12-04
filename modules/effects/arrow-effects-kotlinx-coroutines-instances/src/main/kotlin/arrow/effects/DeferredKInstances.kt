@@ -10,7 +10,6 @@ import arrow.typeclasses.*
 import kotlin.coroutines.CoroutineContext
 import arrow.effects.handleErrorWith as deferredHandleErrorWith
 import arrow.effects.runAsync as deferredRunAsync
-import arrow.effects.startF as deferredStartF
 
 @extension
 interface DeferredKFunctorInstance : Functor<ForDeferredK> {
@@ -98,20 +97,7 @@ interface DeferredKAsyncInstance : Async<ForDeferredK>, DeferredKMonadDeferInsta
 }
 
 @extension
-interface DeferredKConcurrentInstance : Concurrent<ForDeferredK>, DeferredKAsyncInstance {
-
-  override fun <A> Kind<ForDeferredK, A>.startF(ctx: CoroutineContext): DeferredK<Fiber<ForDeferredK, A>> =
-    deferredStartF(ctx)
-
-  override fun <A, B> racePair(ctx: CoroutineContext,
-                               lh: Kind<ForDeferredK, A>,
-                               rh: Kind<ForDeferredK, B>): Kind<ForDeferredK, Either<Tuple2<A, Fiber<ForDeferredK, B>>, Tuple2<Fiber<ForDeferredK, A>, B>>> =
-    DeferredK.racePair(ctx, lh, rh)
-
-}
-
-@extension
-interface DeferredKEffectInstance : Effect<ForDeferredK>, DeferredKConcurrentInstance {
+interface DeferredKEffectInstance : Effect<ForDeferredK>, DeferredKAsyncInstance {
   override fun <A> Kind<ForDeferredK, A>.runAsync(cb: (Either<Throwable, A>) -> DeferredKOf<Unit>): DeferredK<Unit> =
     fix().deferredRunAsync(cb = cb)
 }

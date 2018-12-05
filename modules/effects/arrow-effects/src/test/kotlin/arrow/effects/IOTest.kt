@@ -1,6 +1,5 @@
 package arrow.effects
 
-import arrow.Kind
 import arrow.core.*
 import arrow.effects.data.internal.IOCancellationException
 import arrow.effects.instances.io.async.async
@@ -9,11 +8,9 @@ import arrow.effects.instances.io.monad.binding
 import arrow.effects.instances.io.monad.monad
 import arrow.effects.typeclasses.milliseconds
 import arrow.effects.typeclasses.seconds
-import arrow.instances.option.eq.eq
 import arrow.test.UnitSpec
 import arrow.test.concurrency.SideEffect
 import arrow.test.laws.ConcurrentLaws
-import arrow.typeclasses.Eq
 import io.kotlintest.KTestJUnitRunner
 import io.kotlintest.matchers.fail
 import io.kotlintest.matchers.shouldBe
@@ -23,15 +20,6 @@ import org.junit.runner.RunWith
 
 @RunWith(KTestJUnitRunner::class)
 class IOTest : UnitSpec() {
-  val EQ_OPTION = Option.eq(Eq.any())
-
-  fun <A> EQ(): Eq<Kind<ForIO, A>> {
-    return Eq { a, b ->
-      EQ_OPTION.run {
-        a.fix().attempt().unsafeRunTimed(60.seconds).eqv(b.fix().attempt().unsafeRunTimed(60.seconds))
-      }
-    }
-  }
 
   init {
     testLaws(ConcurrentLaws.laws(IO.concurrent(), EQ(), EQ(), EQ()))
